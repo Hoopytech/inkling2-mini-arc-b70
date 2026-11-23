@@ -1,0 +1,79 @@
+diff --git a/scripts/build-loop-control.sh b/scripts/build-loop-control.sh
+index 79d047a..20c933e 100644
+--- a/scripts/build-loop-control.sh
++++ b/scripts/build-loop-control.sh
+@@ -19,7 +19,7 @@ timeout --kill-after=10s 5m docker run --rm --name "$name" --network none --cpus
+     build() {
+         local source=$1 name=$2
+         icpx -fsycl -fsycl-targets=spir64 -fsycl-device-code-split=per_kernel -D_GLIBCXX_USE_CXX11_ABI=1 \
+-            -ffp-contract=off -O3 -std=c++17 -shared -fPIC -I"$torch/include" -I"$torch/include/torch/csrc/api/include" \
++            -ffp-contract=off -O3 -std=c++20 -shared -fPIC -I"$torch/include" -I"$torch/include/torch/csrc/api/include" \
+             -x c++ "/lab/inkling_xpu/csrc/$source.sycl" -L"$torch/lib" \
+             -lc10 -ltorch -ltorch_cpu -lc10_xpu -ltorch_xpu -o "/lab/.work/build/inkling2-$name.so.new"
+     }
+diff --git a/scripts/build-w8a8.sh b/scripts/build-w8a8.sh
+index 0f77041..3a7d340 100644
+--- a/scripts/build-w8a8.sh
++++ b/scripts/build-w8a8.sh
+@@ -15,7 +15,7 @@ timeout --kill-after=10s 2m docker run --rm --name "$name" --network none --cpus
+     source /opt/intel/oneapi/setvars.sh --force >/dev/null 2>&1
+     torch=$(python3 -c "import os,torch; print(os.path.dirname(torch.__file__))")
+     icpx -fsycl -fsycl-targets=spir64 -fsycl-device-code-split=per_kernel -D_GLIBCXX_USE_CXX11_ABI=1 \
+-        -O3 -std=c++17 -shared -fPIC -I"$torch/include" -I"$torch/include/torch/csrc/api/include" \
++        -O3 -std=c++20 -shared -fPIC -I"$torch/include" -I"$torch/include/torch/csrc/api/include" \
+         -x c++ /lab/inkling_xpu/csrc/dense_w8a8.sycl -L"$torch/lib" \
+         -lc10 -ltorch -ltorch_cpu -lc10_xpu -ltorch_xpu -o /lab/.work/build/inkling2-dense-w8a8.so.new
+ '
+diff --git a/scripts/serve-vllm-exl3.sh b/scripts/serve-vllm-exl3.sh
+index bd7fa9e..3662729 100644
+--- a/scripts/serve-vllm-exl3.sh
++++ b/scripts/serve-vllm-exl3.sh
+@@ -13,8 +13,12 @@ vendor="$PWD/.work/trellis-serve"
+ work="$PWD/.work/vllm-inkling"
+ name=inkling2-vllm-exl3
+ 
+-deadline=$(TZ=Europe/Berlin date -d 'today 22:44' +%s)
+-seconds=$(( deadline - $(date +%s) ))
++if [[ ${INKLING2_NO_DEADLINE:-0} == 1 ]]; then
++    seconds=$(( 3650 * 86400 ))  # servicio permanente: sin ventana de cierre diaria
++else
++    deadline=$(TZ=Europe/Berlin date -d 'today 22:44' +%s)
++    seconds=$(( deadline - $(date +%s) ))
++fi
+ (( seconds > 120 ))
+ test -c "$render_node"
+ for lib in "${INKLING2_LIB:-/lab/.work/build/inkling2-vllm.so}" "${INKLING2_EXL3_MOE_LIB:-/lab/.work/build/inkling2-exl3-moe.so}"; do
+@@ -236,6 +240,6 @@ timeout --kill-after=12s "${seconds}s" docker run --rm --init --name "$name" \
+     --entrypoint /opt/venv/bin/vllm "$runtime" serve /lab/models/exl3 \
+     --hf-config-path /lab/.work/vllm-inkling/config --tokenizer /lab/models/exl3 \
+     --served-model-name inkling2-mini-exl3-b70 --generation-config vllm --load-format safetensors \
+-    --host 127.0.0.1 --port "$port" --max-model-len "$context" --max-num-seqs 1 \
++    --host "${INKLING2_VLLM_HOST:-127.0.0.1}" --port "$port" --max-model-len "$context" --max-num-seqs 1 \
+     --max-num-batched-tokens "$batch" --gpu-memory-utilization 0.90 \
+     --dtype bfloat16 --kv-cache-dtype "$kv_type" "${prefix_args[@]}" --enforce-eager "${spec_args[@]}" "$@"
+diff --git a/xpu/scripts/build_inkling2.sh b/xpu/scripts/build_inkling2.sh
+index adda92c..e252330 100755
+--- a/xpu/scripts/build_inkling2.sh
++++ b/xpu/scripts/build_inkling2.sh
+@@ -4,7 +4,7 @@ source /opt/intel/oneapi/setvars.sh --force >/dev/null 2>&1
+ set -euo pipefail
+ cd "$(dirname "$0")/.."
+ T=$(python3 -c "import torch,os;print(os.path.dirname(torch.__file__))")
+-icpx -fsycl -fsycl-targets=spir64 -O3 -ffast-math -fPIC -std=c++17 -shared \
++icpx -fsycl -fsycl-targets=spir64 -O3 -ffast-math -fPIC -std=c++20 -shared \
+   -fsycl-device-code-split=per_kernel -D_GLIBCXX_USE_CXX11_ABI=1 ${INKLING2_FLAGS:-} \
+   -I csrc -I$T/include -I$T/include/torch/csrc/api/include \
+   -x c++ csrc/inkling2_ops.sycl -x none -o ${INKLING2_OUT:-exl3xpu/_inkling2.so} \
+diff --git a/xpu/scripts/build_moe.sh b/xpu/scripts/build_moe.sh
+index 7652f5f..56a1c48 100755
+--- a/xpu/scripts/build_moe.sh
++++ b/xpu/scripts/build_moe.sh
+@@ -4,7 +4,7 @@ source /opt/intel/oneapi/setvars.sh --force >/dev/null 2>&1
+ set -euo pipefail
+ cd "$(dirname "$0")/.."
+ T=$(python3 -c "import torch,os;print(os.path.dirname(torch.__file__))")
+-icpx -fsycl -fsycl-targets=spir64 -O3 -ffast-math -fPIC -std=c++17 -shared \
++icpx -fsycl -fsycl-targets=spir64 -O3 -ffast-math -fPIC -std=c++20 -shared \
+   -fsycl-device-code-split=per_kernel -D_GLIBCXX_USE_CXX11_ABI=1 ${EXL3_MOE_FLAGS:-} \
+   -I csrc -I$T/include -I$T/include/torch/csrc/api/include \
+   -x c++ csrc/exl3_moe.sycl -x none -o ${EXL3_MOE_OUT:-exl3xpu/_moe.so} \

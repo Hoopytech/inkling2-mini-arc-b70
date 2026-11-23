@@ -6,13 +6,27 @@ reproducible scripts, measurements, a profile of where decode time goes, and a S
 
 ## TL;DR
 
+**Use vLLM, not llama.cpp, on this card.** The community B70 recipe (vLLM 0.33 XPU, EXL3 4-bit experts, native
+SYCL kernels, DSpark) runs **3–6× faster** than the best llama.cpp configuration we found:
+
+| | llama.cpp Vulkan | vLLM XPU + EXL3 + DSpark |
+|---|---|---|
+| Generation | ~20 t/s | **60 t/s (prose) – 118 t/s (code)** |
+| Prefill | ~600 t/s | **~1,400–1,700 t/s** |
+| Context | 384K (q8 KV) | 262K (FP8 KV) |
+
+How to reproduce on a fresh host, plus the two compatibility fixes it needed:
+[`results/2026-11-23-vllm-exl3.md`](results/2026-11-23-vllm-exl3.md). The rest of this README documents the
+llama.cpp investigation, which is still useful for profiling and as a portable fallback.
+
+### llama.cpp (fallback)
+
 | | |
 |---|---|
 | Best backend | **Vulkan** (Unsloth's llama.cpp prebuild); SYCL is 3× slower on prefill even after the fix below |
 | Generation | **~20–22 t/s** |
 | Prefill | **~610 t/s** (llama-bench, 4K tokens, `-ub 1024`); ~320–400 t/s through the server |
 | Max context that fits | **384K tokens** with KV q8_0 (29.1 GiB VRAM); the model supports 1M |
-| Works | tool calling, `--jinja` chat template, reasoning effort, opencode |
 
 Full numbers: [`results/2026-11-23-arc-pro-b70.md`](results/2026-11-23-arc-pro-b70.md).
 
