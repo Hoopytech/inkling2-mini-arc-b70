@@ -42,7 +42,7 @@ def prefill(n_words):
 def decode(prompt):
     first = usage = None
     with post({"messages": [{"role": "user", "content": prompt}], "max_tokens": 600, "min_tokens": 600,
-               "reasoning_effort": "none", "temperature": 1.0, "top_p": 1.0}, stream=True) as resp:
+               "reasoning_effort": "none", "temperature": float(os.environ.get("TEMP", "1.0")), "top_p": 1.0}, stream=True) as resp:
         for line in resp:
             line = line.decode().strip()
             if not line.startswith("data: ") or line == "data: [DONE]":
@@ -63,8 +63,10 @@ for n in (() if os.environ.get("DECODE_ONLY") else (12000, 48000)):
     runs = [prefill(n) for _ in range(2)]
     res[f"prefill_{runs[0][1] // 1000}k"] = statistics.mean(r[0] for r in runs)
 for name, p in PROMPTS.items():
-    vals = [decode(p) for _ in range(REPS)]
-    res[f"decode_{name}"] = statistics.mean(vals)
-    if REPS > 2:
+    # Discard impossible values: if the request queued behind another client, tokens can arrive in a burst.
+    vals = [v for v in (decode(p) for _ in range(REPS)) if v < 1000]
+    res[f"decode_{name}"] = statistics.median(vals)
+    if len(vals) > 2:
         res[f"decode_{name}_sd"] = statistics.stdev(vals)
+    res[f"decode_{name}_n"] = len(vals)
 print(json.dumps({"label": LABEL, **{k: round(v, 1) for k, v in res.items()}}))
