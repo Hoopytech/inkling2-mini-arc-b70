@@ -1,8 +1,8 @@
 # Inkling 2 Mini on Intel Arc Pro B70
 
 Running [Inkling 2 Mini](https://huggingface.co/unsloth/Inkling-2-Mini-GGUF) (26B MoE, 5.4B effective active,
-looped layers, NVFP4 experts) on a single **Intel Arc Pro B70 (32 GB)** with llama.cpp. The repo has
-reproducible scripts, measurements, a profile of where decode time goes, and a SYCL fix.
+looped layers, NVFP4 experts) on a single **Intel Arc Pro B70 (32 GB)** with vLLM XPU and llama.cpp. The repo
+has reproducible scripts, measurements, a profile of where decode time goes, and a SYCL fix.
 
 ## TL;DR
 
