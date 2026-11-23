@@ -1,0 +1,19 @@
+# Upstream llama.cpp with the SYCL backend (oneAPI 2026.0 + oneDNN) for Intel Arc.
+# Build: docker build -f docker/Dockerfile.sycl -t llama-sycl .
+# Run:   docker run --rm --device /dev/dri -v $PWD/models:/models llama-sycl \
+#          /opt/llama.cpp/build/bin/llama-bench -m /models/Inkling-2-Mini-UD-Q4_K_XL.mainline.gguf -ngl 99 -fa 0
+FROM intel/deep-learning-essentials:2026.0.0-devel-ubuntu24.04
+RUN apt-get update && apt-get install -y --no-install-recommends git intel-oneapi-dnnl-devel \
+    && rm -rf /var/lib/apt/lists/*
+ARG LLAMA_COMMIT=212c547fe908b288f6659d48741e6ffac1ff409c
+WORKDIR /opt
+RUN git clone https://github.com/ggml-org/llama.cpp && cd llama.cpp && git checkout ${LLAMA_COMMIT}
+COPY patches/0001-ggml-sycl-scale-non-contiguous.patch /opt/
+RUN cd llama.cpp && git apply /opt/0001-ggml-sycl-scale-non-contiguous.patch
+SHELL ["/bin/bash", "-c"]
+RUN source /opt/intel/oneapi/setvars.sh --force >/dev/null 2>&1; set -e; cd llama.cpp && \
+    cmake -B build -DGGML_SYCL=ON -DGGML_SYCL_TARGET=INTEL -DGGML_SYCL_F16=ON \
+      -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx -DGGML_NATIVE=OFF -DLLAMA_CURL=OFF \
+      -DCMAKE_BUILD_TYPE=Release && \
+    cmake --build build --config Release -j --target llama-server llama-bench test-backend-ops
+ENTRYPOINT ["/bin/bash", "-c", "source /opt/intel/oneapi/setvars.sh --force >/dev/null 2>&1; exec \"$@\"", "--"]

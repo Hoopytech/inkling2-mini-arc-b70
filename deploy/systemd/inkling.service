@@ -1,0 +1,20 @@
+# Copy to /etc/systemd/system/inkling.service, adjust User/paths, then:
+#   sudo systemctl daemon-reload && sudo systemctl enable --now inkling
+[Unit]
+Description=Inkling 2 Mini (llama.cpp Vulkan, Intel Arc)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=llm
+WorkingDirectory=/opt/inkling-arc-b70
+Environment=LLAMA_DIR=/opt/inkling-arc-b70/llama-vulkan
+Environment=MODEL=/opt/inkling-arc-b70/models/Inkling-2-Mini-UD-Q4_K_XL.gguf
+Environment=HOST=0.0.0.0
+Environment=PORT=8080
+ExecStart=/opt/inkling-arc-b70/scripts/serve.sh
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

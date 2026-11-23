@@ -1,0 +1,4 @@
+models/
+llama-vulkan/
+*.gguf
+*.log

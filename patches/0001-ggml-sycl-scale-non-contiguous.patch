@@ -1,0 +1,97 @@
+diff --git a/ggml/src/ggml-sycl/ggml-sycl.cpp b/ggml/src/ggml-sycl/ggml-sycl.cpp
+index 7dda19d..266cef4 100644
+--- a/ggml/src/ggml-sycl/ggml-sycl.cpp
++++ b/ggml/src/ggml-sycl/ggml-sycl.cpp
+@@ -2534,6 +2534,24 @@ static void scale_f32(const float * x, float * dst, const float scale, const flo
+     dst[i] = scale * x[i] + bias;
+ }
+ 
++// Non-contiguous variant: src and dst are addressed through their byte strides.
++static void scale_f32_nc(const char * x, char * dst, const float scale, const float bias,
++                         const int64_t ne0, const int64_t ne1, const int64_t ne2, const int64_t k,
++                         const size_t s0, const size_t s1, const size_t s2, const size_t s3,
++                         const size_t d0, const size_t d1, const size_t d2, const size_t d3,
++                         const sycl::nd_item<3> &item_ct1) {
++    const int64_t i = (int64_t) item_ct1.get_local_range(2) * item_ct1.get_group(2) + item_ct1.get_local_id(2);
++    if (i >= k) {
++        return;
++    }
++    const int64_t i0 = i % ne0;
++    const int64_t i1 = (i / ne0) % ne1;
++    const int64_t i2 = (i / (ne0 * ne1)) % ne2;
++    const int64_t i3 = i / (ne0 * ne1 * ne2);
++    const float v = *(const float *) (x + i0*s0 + i1*s1 + i2*s2 + i3*s3);
++    *(float *) (dst + i0*d0 + i1*d1 + i2*d2 + i3*d3) = scale * v + bias;
++}
++
+ 
+ static void ggml_mul_mat_p021_f16_f32_sycl(const void *vx, const float *y,
+                                            float *dst, const int ncols_x,
+@@ -2593,6 +2611,23 @@ static void scale_f32_sycl(const float *x, float *dst, const float scale, const
+ }
+ 
+ 
++static void scale_f32_nc_sycl(const ggml_tensor * src, ggml_tensor * dst, const float scale, const float bias,
++                              queue_ptr stream) {
++    const int64_t k = ggml_nelements(src);
++    const int64_t num_blocks = (k + SYCL_SCALE_BLOCK_SIZE - 1) / SYCL_SCALE_BLOCK_SIZE;
++    const char * x = (const char *) src->data;
++    char * d = (char *) dst->data;
++    const int64_t ne0 = src->ne[0], ne1 = src->ne[1], ne2 = src->ne[2];
++    const size_t s0 = src->nb[0], s1 = src->nb[1], s2 = src->nb[2], s3 = src->nb[3];
++    const size_t d0 = dst->nb[0], d1 = dst->nb[1], d2 = dst->nb[2], d3 = dst->nb[3];
++    stream->parallel_for(
++        sycl::nd_range<3>(sycl::range<3>(1, 1, num_blocks) * sycl::range<3>(1, 1, SYCL_SCALE_BLOCK_SIZE),
++                          sycl::range<3>(1, 1, SYCL_SCALE_BLOCK_SIZE)),
++        [=](sycl::nd_item<3> item_ct1) {
++            scale_f32_nc(x, d, scale, bias, ne0, ne1, ne2, k, s0, s1, s2, s3, d0, d1, d2, d3, item_ct1);
++        });
++}
++
+ static void sum_rows_f32_sycl(const float *x, float *dst, const int ncols,
+                               const int nrows, queue_ptr stream) {
+     const sycl::range<3> block_dims(1, 1, WARP_SIZE);
+@@ -3582,10 +3617,15 @@ inline void ggml_sycl_op_scale(ggml_backend_sycl_context & ctx, ggml_tensor * ds
+     memcpy(&scale, (float *) dst->op_params + 0, sizeof(float));
+     memcpy(&bias,  (float *) dst->op_params + 1, sizeof(float));
+ 
+-    // the kernel indexes in 32-bit
+-    GGML_ASSERT(ggml_nelements(dst->src[0]) <= INT32_MAX);
++    if (!ggml_is_contiguous(dst->src[0]) || !ggml_is_contiguous(dst)) {
++        // strided path, e.g. scales applied to permuted/view tensors (Inkling 2 logit softcap)
++        scale_f32_nc_sycl(dst->src[0], dst, scale, bias, main_stream);
++    } else {
++        // the kernel indexes in 32-bit
++        GGML_ASSERT(ggml_nelements(dst->src[0]) <= INT32_MAX);
+ 
+-    scale_f32_sycl(src0_dd, dst_dd, scale, bias, ggml_nelements(dst->src[0]), main_stream);
++        scale_f32_sycl(src0_dd, dst_dd, scale, bias, ggml_nelements(dst->src[0]), main_stream);
++    }
+     /*
+     DPCT1010:87: SYCL uses exceptions to report errors and does not use the
+     error codes. The call was replaced with 0. You need to rewrite this code.
+@@ -7634,8 +7674,8 @@ static bool do_ggml_backend_sycl_device_supports_op(ggml_backend_dev_t dev, cons
+         case GGML_OP_RMS_NORM_BACK:
+             return ggml_is_contiguous(op->src[0]);
+         case GGML_OP_SCALE:
+-            // the scale kernel is f32 only, and reads src0 flat
+-            return op->type == GGML_TYPE_F32 && op->src[0]->type == GGML_TYPE_F32 && ggml_is_contiguous(op->src[0]);
++            // f32 only; contiguous tensors use the flat kernel, the rest the strided one
++            return op->type == GGML_TYPE_F32 && op->src[0]->type == GGML_TYPE_F32;
+         case GGML_OP_CONT:
+             return true;
+         case GGML_OP_TRI:
+diff --git a/tests/test-backend-ops.cpp b/tests/test-backend-ops.cpp
+index 53961f7..439ca0c 100644
+--- a/tests/test-backend-ops.cpp
++++ b/tests/test-backend-ops.cpp
+@@ -11808,6 +11808,8 @@ static std::vector<std::unique_ptr<test_case>> make_test_cases_eval() {
+     test_cases.emplace_back(new test_scale(GGML_TYPE_F32, {10, 10, 10, 10}, 2.0f, 1.0f));
+     test_cases.emplace_back(new test_scale(GGML_TYPE_F32, {10, 10, 10, 10}, 2.0f, 1.0f, true)); // inplace test
+     test_cases.emplace_back(new test_scale(GGML_TYPE_F32, {100, 10, 10, 10}, 2.0f, 1.0f));
++    test_cases.emplace_back(new test_scale(GGML_TYPE_F32, {10, 10, 10, 10}, 2.0f, 1.0f, false, 1)); // non-contiguous src
++    test_cases.emplace_back(new test_scale(GGML_TYPE_F32, {10, 10, 10, 10}, 2.0f, 1.0f, true, 1)); // non-contiguous inplace
+     test_cases.emplace_back(new test_scale(GGML_TYPE_BF16, {10, 10, 10, 10}, 2.0f, 1.0f));
+     test_cases.emplace_back(new test_scale(GGML_TYPE_BF16, {10, 10, 10, 10}, 2.0f, 1.0f, true)); // inplace test
+     test_cases.emplace_back(new test_scale(GGML_TYPE_BF16, {100, 10, 10, 10}, 0.5f, 0.0f));
+
