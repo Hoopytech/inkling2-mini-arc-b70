@@ -32,7 +32,7 @@ recipe serves one sequence, concurrent requests queue):
 | Generation, prose prompt | ~20 t/s | **~71 t/s** |
 | Prefill | ~600 t/s | **~2,500 t/s** |
 | Context | 384K (q8 KV) | 262K (FP8 KV) |
-| Quality vs Q8 (wikitext-2 PPL, top-1 agreement) | +0.04 %, 98.0 % | +0.33 %, 96.4 % |
+| Quality vs native weights (wikitext-2 PPL, top-1 agreement) | −0.05 %, 97.7 % | +0.24 %, 96.3 % |
 
 Code decodes faster than prose because of **speculative decoding**: the DSpark drafter guesses code tokens
 (boilerplate, repeated identifiers) far more often than free prose, so each verification pass yields more
@@ -98,10 +98,12 @@ python3 bench/gen_bench.py http://127.0.0.1:8080
 
 ## Limitations
 
-- **Quality is measured against Unsloth's Q8, not the native weights** (which cannot run on Intel GPUs yet).
-  On wikitext-2: the GGUF Q4 is +0.04 % PPL with 98.0 % top-1 agreement (KLD 0.0024); the vLLM EXL3 build is
-  +0.33 % PPL with 96.4 % top-1 agreement (this also includes vLLM's FP8 KV cache). Details:
-  [`results/2026-11-24-quality.md`](results/2026-11-24-quality.md).
+- **Quality is measured against the native weights dequantized to BF16** (run on a rented NVIDIA GPU, since the
+  native checkpoint does not run on Intel GPUs yet). On wikitext-2: the GGUF Q4 has 97.7 % top-1 agreement and
+  KLD 0.0028 (Q8: 97.9 %, KLD 0.0026); the vLLM EXL3 build is +0.24 % PPL with 96.3 % top-1 agreement
+  (this also includes vLLM's FP8 KV cache). Details:
+  [`results/2026-11-24-quality-native.md`](results/2026-11-24-quality-native.md); the earlier comparison against
+  Q8 is in [`results/2026-11-24-quality.md`](results/2026-11-24-quality.md).
 - **Single user only.** No throughput-under-concurrency numbers.
 - **One card, one host.** Results may differ with other power caps (ours is 230 W), drivers or kernels.
 
