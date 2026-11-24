@@ -100,7 +100,8 @@ python3 bench/gen_bench.py http://127.0.0.1:8080
 
 - **Quality is measured against the native weights dequantized to BF16** (run on a rented NVIDIA GPU, since the
   native checkpoint does not run on Intel GPUs yet). On wikitext-2: the GGUF Q4 has 97.7 % top-1 agreement and
-  KLD 0.0028 (Q8: 97.9 %, KLD 0.0026); the vLLM EXL3 build is +0.24 % PPL with 96.3 % top-1 agreement
+  KLD 0.0028, close to the cross-engine floor set by UD-Q8_K_XL, which stores the native
+  precision (97.9 %, KLD 0.0026); the vLLM EXL3 build is +0.24 % PPL with 96.3 % top-1 agreement
   (this also includes vLLM's FP8 KV cache). Details:
   [`results/2026-11-24-quality-native.md`](results/2026-11-24-quality-native.md); the earlier comparison against
   Q8 is in [`results/2026-11-24-quality.md`](results/2026-11-24-quality.md).

@@ -20,7 +20,7 @@ Unsloth build b12631, full distributions); the EXL3 build through the vLLM serve
 | Build | Engine | PPL | PPL vs native | Top-1 agreement with native | Mean KLD vs native |
 |---|---|---|---|---|---|
 | Native weights (BF16) | transformers, NVIDIA | 6.944 | — | — | — |
-| UD-Q8_K_XL | llama.cpp Vulkan | 6.945 | **+0.02 %** | **97.9 %** | **0.0026** (median 0.0010, p99 0.026) |
+| UD-Q8_K_XL (native precision, see below) | llama.cpp Vulkan | 6.945 | **+0.02 %** | **97.9 %** | **0.0026** (median 0.0010, p99 0.026) |
 | UD-Q4_K_XL | llama.cpp Vulkan | 6.940 | **−0.05 %** | **97.7 %** | **0.0028** (median 0.0012, p99 0.026) |
 | EXL3 4bpw | vLLM XPU (B70 recipe, FP8 KV) | 6.960 | **+0.24 %** | **96.3 %** | not computed* |
 
@@ -28,9 +28,13 @@ Unsloth build b12631, full distributions); the EXL3 build through the vLLM serve
 
 ## Reading the numbers
 
-- **The GGUFs are close to the native model**, and Q4 is almost as close as Q8 (KLD 0.0028 vs 0.0026).
-  Q8 is not lossless against the native weights: ~2 % of positions pick a different top token, partly because
-  the comparison also crosses engines and GPUs (NVIDIA BF16 vs Intel Vulkan).
+- **UD-Q8_K_XL is the native precision, so its row is the cross-engine noise floor.** `llama-quantize --dry-run`
+  shows its tensor types: the experts of layers 0–19 are stored as **NVFP4** (the native format), everything else
+  as **BF16** (including the last 4 layers' MXFP8 experts, upcast without loss). Its KLD 0.0026 and 97.9 % top-1
+  agreement are therefore not quantization loss: they measure the difference between engines and GPUs
+  (transformers on NVIDIA vs llama.cpp Vulkan on the B70).
+- **UD-Q4_K_XL adds very little on top of that floor** (KLD 0.0028 vs 0.0026, top-1 97.7 % vs 97.9 %).
+  For Q4 against the same-engine reference, see the earlier report (KLD 0.0024, 98.0 % top-1).
 - A PPL slightly below the reference (Q4) is noise on 38k positions, not an improvement; KLD and top-1 agreement
   are the better measures.
 - **The fast vLLM build costs a bit more**: +0.24 % PPL and 96.3 % top-1 agreement. This includes vLLM's
