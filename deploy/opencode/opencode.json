@@ -1,9 +1,41 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
+    "inkling_vllm": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Inkling 2 Mini (Intel Arc B70, vLLM XPU)",
+      "options": {
+        "baseURL": "http://YOUR_HOST:8093/v1",
+        "apiKey": "sk-none",
+        "timeout": 3600000
+      },
+      "models": {
+        "inkling2-mini-exl3-b70": {
+          "name": "Inkling 2 Mini EXL3 4bpw (vLLM, DSpark, 262K ctx)",
+          "limit": {
+            "context": 262144,
+            "output": 16384
+          },
+          "reasoning": true,
+          "tool_call": true,
+          "attachment": false,
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "options": {
+            "reasoningEffort": "low"
+          }
+        }
+      }
+    },
     "inkling_arc": {
       "npm": "@ai-sdk/openai-compatible",
-      "name": "Inkling 2 Mini (Intel Arc, llama.cpp)",
+      "name": "Inkling 2 Mini (Intel Arc, llama.cpp fallback)",
       "options": {
         "baseURL": "http://YOUR_HOST:8080/v1",
         "apiKey": "sk-none",
@@ -12,12 +44,24 @@
       "models": {
         "inkling-2-mini": {
           "name": "Inkling 2 Mini UD-Q4_K_XL (384K ctx)",
-          "limit": { "context": 393216, "output": 16384 },
+          "limit": {
+            "context": 393216,
+            "output": 16384
+          },
           "reasoning": true,
           "tool_call": true,
           "attachment": false,
-          "modalities": { "input": ["text"], "output": ["text"] },
-          "options": { "reasoningEffort": "low" }
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "options": {
+            "reasoningEffort": "low"
+          }
         }
       }
     }

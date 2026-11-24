@@ -1,0 +1,26 @@
+diff --git a/xpu/scripts/build_inkling2.sh b/xpu/scripts/build_inkling2.sh
+index adda92c..e252330 100755
+--- a/xpu/scripts/build_inkling2.sh
++++ b/xpu/scripts/build_inkling2.sh
+@@ -4,7 +4,7 @@ source /opt/intel/oneapi/setvars.sh --force >/dev/null 2>&1
+ set -euo pipefail
+ cd "$(dirname "$0")/.."
+ T=$(python3 -c "import torch,os;print(os.path.dirname(torch.__file__))")
+-icpx -fsycl -fsycl-targets=spir64 -O3 -ffast-math -fPIC -std=c++17 -shared \
++icpx -fsycl -fsycl-targets=spir64 -O3 -ffast-math -fPIC -std=c++20 -shared \
+   -fsycl-device-code-split=per_kernel -D_GLIBCXX_USE_CXX11_ABI=1 ${INKLING2_FLAGS:-} \
+   -I csrc -I$T/include -I$T/include/torch/csrc/api/include \
+   -x c++ csrc/inkling2_ops.sycl -x none -o ${INKLING2_OUT:-exl3xpu/_inkling2.so} \
+diff --git a/xpu/scripts/build_moe.sh b/xpu/scripts/build_moe.sh
+index 7652f5f..56a1c48 100755
+--- a/xpu/scripts/build_moe.sh
++++ b/xpu/scripts/build_moe.sh
+@@ -4,7 +4,7 @@ source /opt/intel/oneapi/setvars.sh --force >/dev/null 2>&1
+ set -euo pipefail
+ cd "$(dirname "$0")/.."
+ T=$(python3 -c "import torch,os;print(os.path.dirname(torch.__file__))")
+-icpx -fsycl -fsycl-targets=spir64 -O3 -ffast-math -fPIC -std=c++17 -shared \
++icpx -fsycl -fsycl-targets=spir64 -O3 -ffast-math -fPIC -std=c++20 -shared \
+   -fsycl-device-code-split=per_kernel -D_GLIBCXX_USE_CXX11_ABI=1 ${EXL3_MOE_FLAGS:-} \
+   -I csrc -I$T/include -I$T/include/torch/csrc/api/include \
+   -x c++ csrc/exl3_moe.sycl -x none -o ${EXL3_MOE_OUT:-exl3xpu/_moe.so} \

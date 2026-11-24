@@ -1,0 +1,19 @@
+# Inkling 2 Mini on vLLM XPU (B70 recipe + our tuning). Copy to /etc/systemd/system/, set User and the
+# path to this repository, then: sudo systemctl daemon-reload && sudo systemctl enable --now inkling-vllm
+# Make sure no other service (another vLLM / llama.cpp) is enabled on the same GPU.
+[Unit]
+Description=Inkling 2 Mini (vLLM XPU, EXL3 + DSpark)
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+User=llm
+Environment=INKLING_DIR=/home/llm/inkling-vllm
+ExecStart=/opt/inkling-arc-b70/scripts/vllm/serve.sh
+ExecStop=/usr/bin/docker stop --time 15 inkling2-vllm-exl3
+Restart=on-failure
+RestartSec=20
+TimeoutStartSec=600
+
+[Install]
+WantedBy=multi-user.target

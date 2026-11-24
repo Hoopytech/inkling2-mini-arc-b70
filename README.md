@@ -15,8 +15,9 @@ SYCL kernels, DSpark) runs **3–6× faster** than the best llama.cpp configurat
 | Prefill | ~600 t/s | **~1,400–1,700 t/s** |
 | Context | 384K (q8 KV) | 262K (FP8 KV) |
 
-How to reproduce on a fresh host, plus the two compatibility fixes it needed:
-[`results/2026-11-23-vllm-exl3.md`](results/2026-11-23-vllm-exl3.md). The rest of this README documents the
+**Step-by-step guide to set it up like ours: [`docs/GUIDE-vllm.md`](docs/GUIDE-vllm.md)**
+(credits, pinned commits, our two compatibility patches, tuned profile, systemd unit, opencode config).
+Measurements: [`results/2026-11-23-vllm-exl3.md`](results/2026-11-23-vllm-exl3.md). The rest of this README documents the
 llama.cpp investigation, which is still useful for profiling and as a portable fallback.
 
 ### llama.cpp (fallback)
