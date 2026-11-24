@@ -12,7 +12,7 @@ it builds on. It also uses [Trellis Serve](https://github.com/sybil-solutions/tr
 [grant-ai EXL3 checkpoint](https://huggingface.co/grant-ai/Inkling-2-Mini-EXL3-4bpw) of
 [Thinking Machines' Inkling 2 Mini](https://huggingface.co/thinkingmachines/Inkling-2-Mini).
 
-What this guide adds on top:
+What this guide, written by [Hoopytech](https://hoopytech.com), adds on top:
 
 - Two small **compatibility patches** for building from source on a different host (`patches/vllm-recipe/`):
   C++20 for the PyTorch 2.15 headers, an optional daily stop and a configurable bind address.
@@ -91,3 +91,11 @@ Full measurements, including what did not help: [`results/2026-11-23-vllm-exl3.m
 | A second client waits | The recipe serves **one sequence at a time**. Concurrent requests queue. |
 | `ERROR … model type inkling2_loop … Transformers does not recognize` in the log | Harmless; the recipe's plugin provides the architecture. |
 | Weights symlinked to another disk are not found | The checkout is bind-mounted into the container: keep real files under `models/exl3`. |
+
+## About Hoopytech
+
+<a href="https://hoopytech.com"><b>Hoopytech</b></a> is a boutique AI consultancy. We build AI solutions (LLMs,
+agents, RAG, MLOps), embed senior AI specialists and fractional AI leadership in client teams, and help with
+EU AI Act compliance. Running capable open models on your own hardware, like this setup, is part of that work.
+
+If you want a private LLM deployment on your infrastructure, or a hand tuning one: **[hoopytech.com](https://hoopytech.com)**.

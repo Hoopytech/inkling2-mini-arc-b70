@@ -4,6 +4,8 @@ Running [Inkling 2 Mini](https://huggingface.co/unsloth/Inkling-2-Mini-GGUF) (26
 looped layers, NVFP4 experts) on a single **Intel Arc Pro B70 (32 GB)** with vLLM XPU and llama.cpp. The repo
 has reproducible scripts, measurements, a profile of where decode time goes, and a SYCL fix.
 
+Reproduced, tuned and documented by **[Hoopytech](https://hoopytech.com)**, building on the B70 recipe by [@Danmoreng](https://github.com/Danmoreng) (credits in the [guide](docs/GUIDE-vllm.md#credits)).
+
 ## TL;DR
 
 **Use vLLM, not llama.cpp, on this card.** The community B70 recipe (vLLM 0.33 XPU, EXL3 4-bit experts, native
@@ -79,6 +81,14 @@ python3 bench/vk_profile.py perf.log
 
 SYCL: [`docker/Dockerfile.sycl`](docker/Dockerfile.sycl) (upstream + patch, oneAPI 2026.0). Our measurements used an
 equivalent local oneAPI image, and this public Dockerfile has not been built end-to-end yet.
+
+## About Hoopytech
+
+<a href="https://hoopytech.com"><b>Hoopytech</b></a> is a boutique AI consultancy. We build AI solutions (LLMs,
+agents, RAG, MLOps), embed senior AI specialists and fractional AI leadership in client teams, and help with
+EU AI Act compliance. Running capable open models on your own hardware, like this setup, is part of that work.
+
+If you want a private LLM deployment on your infrastructure, or a hand tuning one: **[hoopytech.com](https://hoopytech.com)**.
 
 ## License
 
