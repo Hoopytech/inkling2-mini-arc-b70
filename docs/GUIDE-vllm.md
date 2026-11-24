@@ -37,6 +37,10 @@ The GPU must be free during kernel checks and serving. Stop any other model serv
 
 Run everything from a clone of this repository. Each step is a script you can read before running.
 
+> **Status:** we ran these steps by hand on our host. The numbered scripts wrap exactly those commands, and both
+> patches were checked to apply cleanly on fresh clones of the pinned commits, but the scripts themselves have not
+> yet been run in sequence on a clean machine. If a step fails, please open an issue with its output.
+
 ```bash
 source scripts/vllm/env.sh   # check INKLING_DIR and INKLING2_RENDER_NODE (ls -l /dev/dri/by-path/)
 
