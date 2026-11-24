@@ -32,6 +32,7 @@ recipe serves one sequence, concurrent requests queue):
 | Generation, prose prompt | ~20 t/s | **~71 t/s** |
 | Prefill | ~600 t/s | **~2,500 t/s** |
 | Context | 384K (q8 KV) | 262K (FP8 KV) |
+| Quality vs Q8 (wikitext-2 PPL, top-1 agreement) | +0.04 %, 98.0 % | +0.33 %, 96.4 % |
 
 Code decodes faster than prose because of **speculative decoding**: the DSpark drafter guesses code tokens
 (boilerplate, repeated identifiers) far more often than free prose, so each verification pass yields more
@@ -97,10 +98,10 @@ python3 bench/gen_bench.py http://127.0.0.1:8080
 
 ## Limitations
 
-- **Quality was not measured against the native weights.** Both setups are 4-bit quantizations, neither is the
-  official NVFP4/MXFP8 checkpoint: Unsloth reports 98.0 % top-token agreement for UD-Q4_K_XL vs UD-Q8_K_XL, and
-  the recipe author reports coding-task results for the EXL3 build. We only checked needle retrieval (150K
-  tokens), tool calling and a few manual prompts; we did not run KLD or perplexity against the native model.
+- **Quality is measured against Unsloth's Q8, not the native weights** (which cannot run on Intel GPUs yet).
+  On wikitext-2: the GGUF Q4 is +0.04 % PPL with 98.0 % top-1 agreement (KLD 0.0024); the vLLM EXL3 build is
+  +0.33 % PPL with 96.4 % top-1 agreement (this also includes vLLM's FP8 KV cache). Details:
+  [`results/2026-11-24-quality.md`](results/2026-11-24-quality.md).
 - **Single user only.** No throughput-under-concurrency numbers.
 - **One card, one host.** Results may differ with other power caps (ours is 230 W), drivers or kernels.
 
